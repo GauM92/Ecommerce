@@ -1,4 +1,3 @@
-
 -- BANCO DE DADOS E-COMMERCE
 
 DROP DATABASE IF EXISTS ecommerceRefinado;
@@ -66,6 +65,7 @@ END;
 //
 
 DELIMITER ;
+
 -- Endereços de Clientes
 CREATE TABLE AddressClient (
     idAddress INT AUTO_INCREMENT PRIMARY KEY,
@@ -105,7 +105,7 @@ CREATE TABLE StorageLocation (
     idLStorage INT,
     location VARCHAR(255),
     PRIMARY KEY (idLProduct, idLStorage),
-	FOREIGN KEY (idLProduct) REFERENCES Product(idProduct),
+    FOREIGN KEY (idLProduct) REFERENCES Product(idProduct),
     FOREIGN KEY (idLStorage) REFERENCES ProductStorage(idProdStorage)
 );
 
@@ -178,17 +178,27 @@ CREATE TABLE ProductOrder (
     FOREIGN KEY (idOrder) REFERENCES Orders(idOrder)
 );
 
+-- Tabela ClientPayment (adicionada para resolver o erro de referência)
+CREATE TABLE ClientPayment (
+    idClientPayment INT AUTO_INCREMENT PRIMARY KEY,
+    idClient INT NOT NULL,
+    typePayment ENUM('Cartao','Pix','Boleto') NOT NULL,
+    paymentDetails VARCHAR(255),
+    FOREIGN KEY (idClient) REFERENCES Clients(idClient)
+);
 
 -- PAGAMENTOS (vários por pedido)
-
 CREATE TABLE Payments (
     idPayment INT AUTO_INCREMENT PRIMARY KEY,
     idOrder INT NOT NULL,
-    typePayment ENUM('Boleto','Cartao','Pix','Transferencia') NOT NULL,
+    idClientPayment INT NOT NULL,
+    idClient INT NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (idOrder) REFERENCES Orders(idOrder)
+    paymentStatus ENUM('Pendente','Aprovado','Recusado','Estornado') DEFAULT 'Pendente',
+    FOREIGN KEY (idOrder) REFERENCES Orders(idOrder),
+    FOREIGN KEY (idClientPayment) REFERENCES ClientPayment(idClientPayment),
+    FOREIGN KEY (idClient) REFERENCES Clients(idClient)
 );
-
 
 -- ENTREGA
 
@@ -199,6 +209,8 @@ CREATE TABLE Delivery (
     codigoRastreio VARCHAR(50),
     FOREIGN KEY (idOrder) REFERENCES Orders(idOrder)
 );
+
+show tables;
 
 -- CLIENTES (PF e PJ)
 
@@ -214,7 +226,6 @@ VALUES
 ('Fernanda', 'R', 'Souza', 'fernanda@email.com', '21922221111'),
 ('Global', NULL, 'Tech SA', 'contato@globaltech.com', '1130303030'),
 ('Construtora', NULL, 'Alpha LTDA', 'contato@alpha.com', '1140404040');
-
 
 -- PF
 INSERT INTO ClientPF (idClientPF, CPF)
@@ -258,7 +269,9 @@ VALUES
 ('Lacta Alimentos', '33333333000133', '1133332222'),
 ('Samsung Eletronicos', '44444444000144', '11912121212'),
 ('Adidas Brasil', '55555555000155', '11923232323'),
-('Nestle SA', '66666666000166', '1134343434');
+('Construtora Alpha LTDA','66677788000155','11944662256'),
+('Nestle SA', '66666666000166', '1134343434'),
+('TechFornecedor MEI', '88888888000188', '11999990000');
 
 
 -- PRODUTOS
@@ -274,7 +287,9 @@ VALUES
 ('Tênis Adidas', FALSE, 'Vestimenta', 4.6, '42'),
 ('Lego Star Wars', TRUE, 'Brinquedos', 4.8, '500 peças'),
 ('Chocolate Nestle', TRUE, 'Alimentos', 4.4, '90g'),
-('Cadeira Gamer', FALSE, 'Moveis', 4.7, '120x70cm');
+('Cadeira Gamer', FALSE, 'Moveis', 4.7, '120x70cm'),
+('Mouse Gamer', FALSE, 'Eletronico', 4.5, 'Médio'),
+('Teclado Mecânico', FALSE, 'Eletronico', 4.7, 'Padrão');
 
 -- Produto | Fornecedor
 INSERT INTO ProductSupplier (idPsSupplier, idPsProduct, quantity)
@@ -288,7 +303,9 @@ VALUES
 (5,7,250), -- Adidas fornece Tênis
 (5,8,80),  -- Adidas fornece Lego
 (6,9,600), -- Nestle fornece Chocolate
-(4,10,30); -- Samsung fornece Cadeira Gamer
+(4,10,30), -- Samsung fornece Cadeira Gamer
+(8, 11, 100),  -- TechFornecedor fornece Mouse Gamer
+(8, 12, 80);   -- TechFornecedor fornece Teclado Mecânico
 
 -- VENDEDORES
 
@@ -299,9 +316,10 @@ VALUES
 ('Lojas Brasil LTDA', 'Lojas Brasil', '44444444000144', NULL, 'Rio de Janeiro', '2133334444'),
 ('Fernanda MEI', 'Fernanda Store', NULL, '11122233344', 'Belo Horizonte', '31955556666'),
 ('Adidas Oficial', 'Adidas', '55555555000155', NULL, 'São Paulo', '11910101010'),
-('MegaTech LTDA', 'MegaTech', '77777777000177', NULL, 'Curitiba', '41920202020');
+('MegaTech LTDA', 'MegaTech', '77777777000177', NULL, 'Curitiba', '41920202020'),
+('TechFornecedor MEI', 'TechFornecedor', '88888888000188', NULL, 'São Paulo', '11999990000');
 
--- Produto ↔ Vendedor
+-- Produto do Vendedor
 INSERT INTO ProductSeller (idSeller, idProduct, prodQuantity)
 VALUES
 (1,1,5),   
@@ -313,7 +331,9 @@ VALUES
 (4,9,50),  
 (5,7,120), 
 (5,8,40),  
-(6,10,15); 
+(6,10,15),
+(7, 11, 30),
+(7, 12, 25);
 
 -- PEDIDOS
 
@@ -343,26 +363,36 @@ VALUES
 (6,8,2,'Cancelado'),
 (7,8,3,'Cancelado');
 
-
--- PAGAMENTOS (vários por pedido)
-
-
-INSERT INTO Payments (idOrder, typePayment, amount)
+-- Inserções para ClientPayment (adicionadas para resolver o erro)
+INSERT INTO ClientPayment (idClient, typePayment, paymentDetails)
 VALUES
-(1,'Cartao',3000.00),
-(2,'Pix',200.00),
-(2,'Cartao',150.00),
-(3,'Boleto',1200.00),
-(4,'Cartao',3500.00),
-(5,'Pix',600.00),
-(5,'Cartao',150.00),
-(6,'Boleto',4800.00),
-(7,'Pix',50.00),
-(8,'Cartao',0.00);
+(1, 'Cartao', 'Cartão Visa final 1234'),
+(2, 'Pix', 'Chave PIX: 11977776666'),
+(2, 'Cartao', 'Cartão Mastercard final 5678'),
+(3, 'Boleto', 'Boleto bancário'),
+(4, 'Cartao', 'Cartão corporativo final 9012'),
+(5, 'Pix', 'Chave PIX: contato@supermercado.com'),
+(5, 'Cartao', 'Cartão final 3456'),
+(6, 'Boleto', 'Boleto bancário'),
+(7, 'Pix', 'Chave PIX: 11944443333'),
+(8, 'Cartao', 'Cartão final 7890');
 
--- ========================
+-- PAGAMENTOS
+INSERT INTO Payments (idOrder, idClientPayment, idClient, amount, paymentStatus)
+VALUES
+(1, 1, 1, 3000.00, 'Aprovado'),
+(2, 2, 2, 200.00, 'Aprovado'),
+(2, 3, 2, 150.00, 'Aprovado'),
+(3, 4, 4, 1200.00, 'Pendente'),
+(4, 5, 6, 3500.00, 'Aprovado'),
+(5, 6, 7, 600.00, 'Aprovado'),
+(5, 7, 7, 150.00, 'Aprovado'),
+(6, 8, 9, 4800.00, 'Pendente'),
+(7, 9, 8, 50.00, 'Aprovado'),
+(8, 10, 10, 0.00, 'Recusado');
+
 -- ENTREGA
--- ========================
+
 INSERT INTO Delivery (idOrder, statusEntrega, codigoRastreio)
 VALUES
 (1,'Em transporte','BR123456789SP'),
@@ -373,4 +403,3 @@ VALUES
 (6,'Aguardando envio','BR777888999RS'),
 (7,'Entregue','BR000111222SP'),
 (8,'Cancelado','CANCEL000CUR');
-

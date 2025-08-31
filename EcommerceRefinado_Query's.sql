@@ -8,10 +8,17 @@ LEFT JOIN Orders o ON c.idClient = o.idClient
 GROUP BY c.idClient, NomeCliente;
 
 -- Vendedor também é um fornecedor?
-SELECT v.idSeller, v.socialName
-FROM Seller v
-INNER JOIN Supplier f 
-       ON v.socialName = f.socialName;
+SELECT 
+    s.idSeller,
+    s.socialName as NomeVendedor,
+    s.CNPJ as CNPJ_Vendedor,
+    sup.idSupplier,
+    sup.socialName as NomeFornecedor,
+    sup.CNPJ as CNPJ_Fornecedor,
+    s.contact as Contato
+FROM Seller s
+INNER JOIN Supplier sup ON s.CNPJ = sup.CNPJ
+WHERE s.CNPJ IS NOT NULL;
  
  -- Estoque, produtos e fornecedores
 SELECT p.Pname AS Produto,
@@ -62,3 +69,16 @@ SELECT
     SUM(o.sendValue) AS ValorTotalGasto,
     count(idOrder) AS TotalVendas
 FROM Orders o;
+
+SELECT 
+    ac.Estado,
+    SUM(po.poQuantity) as QuantidadeTotalComprada,
+    COUNT(DISTINCT o.idOrder) as TotalPedidos,
+    COUNT(DISTINCT o.idClient) as TotalClientes
+FROM ProductOrder po
+INNER JOIN Orders o ON po.idOrder = o.idOrder
+INNER JOIN AddressClient ac ON o.idClient = ac.idClient
+WHERE po.poStatus != 'Cancelado'
+GROUP BY ac.Estado
+ORDER BY QuantidadeTotalComprada DESC;
+
